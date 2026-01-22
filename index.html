@@ -3,18 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Oma Display V9 Hybrid</title>
+<title>Oma Display V10</title>
 <style>
     /* === OMA UI DESIGN === */
     :root { --bg: #000000; --text: #ffffff; --accent: #4cd137; }
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; width: 100vw; display: flex; flex-direction: column; }
     
+    /* HEADER */
     #metaInfo { height: 60px; width: 100%; background: #111; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 2.5vh; color: #888; flex-shrink: 0; z-index: 5; }
+    
+    /* MAIN DISPLAY */
     #displayArea { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; overflow: hidden; position: relative; }
     #messageText { font-size: 6vh; line-height: 1.2; font-weight: bold; word-wrap: break-word; max-height: 100%; overflow-y: auto; width: 100%; }
     #messageImg { max-width: 100%; max-height: 65vh; object-fit: contain; border-radius: 20px; margin-bottom: 20px; display: none; }
     
+    /* NAVIGATION ZONES */
     .nav-zone { position: fixed; top: 60px; bottom: 0; width: 20%; z-index: 10; opacity: 0; display: flex; align-items: center; justify-content: center; font-size: 50px; color: white; background: rgba(255,255,255,0.1); cursor: pointer; }
     .nav-zone:active { opacity: 1; }
     #btnPrev { left: 0; } #btnNext { right: 0; }
@@ -37,6 +41,7 @@
     <div id="debugLog"></div>
     <div id="reloadBtn" onclick="location.reload()">↻</div>
 
+    <!-- SETUP FORMULAR -->
     <div id="setupScreen">
         <h1 style="color:white; margin:0">Einrichtung</h1>
         <div style="color:#aaa; font-size:12px; margin-bottom:10px">Oder Magic-Link benutzen</div>
@@ -54,6 +59,7 @@
         <button onclick="resetApp()" style="background:#555; font-size:14px; margin-top:0">Reset</button>
     </div>
 
+    <!-- UI BEREICHE -->
     <div id="metaInfo"></div>
     <div id="displayArea">
         <img id="messageImg" src="">
@@ -73,7 +79,6 @@
                 const json = JSON.parse(atob(b64));
                 
                 // Mapping der Short-Keys (Sender) auf Config-Keys (Empfänger)
-                // t=Topic, p=Pass, gu=GitUser, gr=GitRepo, gt=GitToken
                 const newConf = {
                     ghUser: json.gu,
                     ghRepo: json.gr,
@@ -84,10 +89,8 @@
 
                 // Validierung
                 if(newConf.ghUser && newConf.ntfyTopic && newConf.pass) {
-                    localStorage.setItem('oma_conf_v9', JSON.stringify(newConf));
-                    // URL sauber machen (Sicherheit)
+                    localStorage.setItem('oma_conf_v10', JSON.stringify(newConf));
                     history.replaceState(null, null, window.location.pathname);
-                    // Reload für sauberen Start
                     location.reload();
                 } else {
                     alert("Link unvollständig.");
@@ -99,15 +102,15 @@
         }
     })();
 
-    // === 1. BASIC SETUP ===
+    // === 1. BASIC UTILS ===
     function log(msg) { console.log(msg); const d=document.getElementById('debugLog'); if(d) d.innerHTML=`> ${msg}<br>`+d.innerHTML; }
     function toggleDebug() { const d=document.getElementById('debugLog'); d.style.display=d.style.display==='none'?'block':'none'; }
 
-    let config = JSON.parse(localStorage.getItem('oma_conf_v9')) || null;
+    let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
     let messages = []; 
     let currentIndex = 0;
     
-    // Web Crypto
+    // Web Crypto Setup
     const enc = new TextEncoder();
     const dec = new TextDecoder();
     async function getKey(password, salt) {
@@ -132,8 +135,11 @@
         document.getElementById('setupScreen').style.display = 'none';
         startApp();
     } else {
-        // Falls manuell eingegeben werden soll (Fallback)
-        // Vorbelegung falls Felder leer
+        // Setup Formular Felder füllen falls vorhanden
+        if(config) {
+            document.getElementById('ghUser').value = config.ghUser || "";
+            document.getElementById('setupTopic').value = config.ntfyTopic || "";
+        }
     }
 
     function saveSetup() {
@@ -145,16 +151,16 @@
             pass: document.getElementById('setupPass').value.trim()
         };
         if(!c.ghUser || !c.ghToken || !c.ntfyTopic || !c.pass) return alert("Alles ausfüllen!");
-        localStorage.setItem('oma_conf_v9', JSON.stringify(c));
+        localStorage.setItem('oma_conf_v10', JSON.stringify(c));
         location.reload();
     }
-    function resetApp() { localStorage.removeItem('oma_conf_v9'); location.reload(); }
+    function resetApp() { localStorage.removeItem('oma_conf_v10'); location.reload(); }
 
-    // === 2. LOGIC ===
+    // === 2. HAUPTLOGIK ===
     async function startApp() {
-        // Zuerst Archiv laden
+        // 1. Archiv laden
         await loadGitHubArchive();
-        // Dann Live schalten
+        // 2. Live Verbindung starten
         connectNtfy();
     }
 
@@ -168,13 +174,15 @@
                 const archiveData = await resp.json();
                 log(`${archiveData.length} Nachrichten im Archiv.`);
                 for(let item of archiveData) {
+                    // WICHTIG: 'hidden' Flag durchreichen für Soft Delete
                     await processAndAdd({
                         ts: item.timestamp,
                         enc: item.enc,
-                        img: item.img 
+                        img: item.img,
+                        hidden: item.hidden 
                     });
                 }
-            } else { log("Archiv noch leer/nicht gefunden."); }
+            } else { log("Archiv noch leer oder nicht gefunden."); }
         } catch(e) { log("GitHub Fehler: " + e.message); }
     }
 
@@ -187,22 +195,49 @@
 
         es.onmessage = async (e) => {
             const data = JSON.parse(e.data);
+            
             if (data.event === 'message') {
+                
+                // === DELETE CHECK (LIVE) ===
+                // Wir prüfen, ob es ein Lösch-Befehl ist
+                try {
+                    const cmdData = JSON.parse(data.message);
+                    if (cmdData.cmd === 'DELETE' && cmdData.ts) {
+                        log(`Lösche live: ${cmdData.ts}`);
+                        // Aus Array entfernen
+                        messages = messages.filter(m => m.timestamp !== cmdData.ts);
+                        
+                        // Index korrigieren, falls wir gerade am Ende waren
+                        if (currentIndex >= messages.length) currentIndex = Math.max(0, messages.length - 1);
+                        
+                        updateDisplay();
+                        return; // Wichtig: Hier abbrechen!
+                    }
+                } catch(err) { /* Kein JSON-Command, normale Nachricht */ }
+
+                // Normale Nachricht verarbeiten
                 let encPayload = data.attachment ? data.title : data.message;
                 let imgData = data.attachment ? data.attachment.url : null;
 
                 await processAndAdd({
                     ts: data.time,
                     enc: encPayload,
-                    img: imgData
+                    img: imgData,
+                    hidden: false // Live Nachrichten sind per se erstmal nicht versteckt
                 });
             }
         };
     }
 
     async function processAndAdd(item) {
-        if(!item.enc) return;
-        if (messages.some(m => m.timestamp === item.ts)) return; // Dubletten Check
+        // 1. ZOMBIE CHECK: Wenn hidden, gar nicht erst aufnehmen
+        if (item.hidden) return;
+        
+        // 2. DECRYPTION CHECK: Leere Daten ignorieren
+        if (!item.enc) return;
+        
+        // 3. DEDUP CHECK: Haben wir den Timestamp schon?
+        if (messages.some(m => m.timestamp === item.ts)) return;
 
         let plain = { sender: '?', text: 'Fehler', image: null };
         const jsonStr = await decryptStr(item.enc, config.pass);
@@ -212,10 +247,12 @@
                 const content = JSON.parse(jsonStr);
                 plain.sender = content.sender;
                 plain.text = content.text;
-                // Prio: Wenn im JSON vom Sender ein Bild war (theoretisch) oder im Item (vom GitHub Worker Base64 oder Ntfy URL)
+                // Bild-Priorität: Archiv Base64 > Live URL
                 plain.image = item.img; 
             } catch(e) { plain.text = jsonStr; }
-        } else { return; }
+        } else {
+            return; // Entschlüsselung fehlgeschlagen
+        }
 
         messages.push({
             timestamp: item.ts,
@@ -226,8 +263,10 @@
 
         messages.sort((a,b) => a.timestamp - b.timestamp);
         
-        // Auto-Forward: Wenn wir ganz hinten waren, geh auch beim Update nach hinten
+        // AUTO-SCROLL: Wenn wir die aktuellste Nachricht ansehen, springe zur neuen
+        // (Minus 2, weil durch den Push die Länge schon gewachsen ist)
         const wasAtEnd = (currentIndex >= messages.length - 2);
+        
         if (wasAtEnd || messages.length === 1) {
             currentIndex = messages.length - 1;
         }
@@ -235,7 +274,12 @@
     }
 
     function updateDisplay() {
-        if(messages.length === 0) { document.getElementById('messageText').innerText = "Warte auf Nachrichten..."; return; }
+        if(messages.length === 0) {
+            document.getElementById('messageText').innerText = "Warte auf Nachrichten...";
+            document.getElementById('messageImg').style.display = 'none';
+            document.getElementById('metaInfo').innerText = "";
+            return;
+        }
         
         const msg = messages[currentIndex];
         const txtEl = document.getElementById('messageText');
@@ -245,7 +289,8 @@
         txtEl.innerText = msg.text || "";
         
         if(msg.image) {
-            imgEl.src = msg.image; imgEl.style.display = 'block';
+            imgEl.src = msg.image; 
+            imgEl.style.display = 'block';
         } else {
             imgEl.style.display = 'none';
         }
@@ -254,11 +299,16 @@
         metaEl.innerText = `${msg.sender} • ${date} (${currentIndex + 1}/${messages.length})`;
     }
 
+    // Navigation
     window.nextMsg = function() { if(currentIndex < messages.length - 1) { currentIndex++; updateDisplay(); } };
     window.prevMsg = function() { if(currentIndex > 0) { currentIndex--; updateDisplay(); } };
-    document.addEventListener('keydown', (e) => { if(e.key === 'ArrowLeft') prevMsg(); if(e.key === 'ArrowRight') nextMsg(); });
+    
+    document.addEventListener('keydown', (e) => { 
+        if(e.key === 'ArrowLeft') prevMsg(); 
+        if(e.key === 'ArrowRight') nextMsg(); 
+    });
 
-    if(!window.isSecureContext) alert("HTTPS erforderlich!");
+    if(!window.isSecureContext) alert("Achtung: HTTPS erforderlich für Verschlüsselung!");
 </script>
 </body>
 </html>
