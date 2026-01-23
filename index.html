@@ -150,20 +150,23 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
     }
 
     // === PROCESS AND ADD (UPDATED) ===
-    async function processAndAdd(item) {
-        if (item.hidden || !item.enc) return;
+ async function processAndAdd(item) {
+        // 1. ZOMBIE & BLACKLIST CHECK
+        // Wenn im Item hidden gesetzt ist ODER wir es schon auf der schwarzen Liste haben:
         if (item.hidden || hiddenRegistry.has(item.ts)) {
-            // Zur Sicherheit in die Liste aufnehmen, falls noch nicht drin
-            hiddenRegistry.add(item.ts);
-            return;
+            hiddenRegistry.add(item.ts); // Fürs nächste Mal merken
+            return; // Und tschüss
         }
         
+        // 2. Validierung
+        if (!item.enc) return;
         if (messages.some(m => m.timestamp === item.ts)) return;
-        
 
         let plain = { sender: '?', text: 'Fehler', image: null };
         
-        // 1. Text entschlüsseln (Der ist wie immer Base64 String)
+        // ... (AB HIER BLEIBT ALLES WIE VORHER: Decrypt Text, Decrypt Bild, Push) ...
+        // Hier zur Sicherheit der Rest, damit du nichts falsch kopierst:
+        
         const jsonStr = await decryptStr(item.enc, config.pass);
         if(jsonStr) {
             try {
@@ -171,28 +174,22 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
                 plain.sender = content.sender;
                 plain.text = content.text;
             } catch(e) { plain.text = "Format Fehler"; }
-        } else { return; } // Key falsch?
+        } else { return; }
 
-        // 2. Bild entschlüsseln (Das ist der neue Teil)
         if (item.img) {
             let encryptedBuffer = null;
-            
-            // Fall A: Kommt live von ntfy (URL)
             if (item.img.startsWith('http')) {
                 try {
                     const resp = await fetch(item.img);
                     encryptedBuffer = await resp.arrayBuffer();
                 } catch(e) { console.error("Live Load Error", e); }
-            } 
-            // Fall B: Kommt aus GitHub Archiv (Base64 String)
-            else {
+            } else {
                 encryptedBuffer = base64ToBuffer(item.img);
             }
 
             if (encryptedBuffer) {
                 const decryptedImageBuffer = await decryptData(encryptedBuffer, config.pass);
                 if (decryptedImageBuffer) {
-                    // Blob erstellen und URL erzeugen, die der Browser anzeigen kann
                     const blob = new Blob([decryptedImageBuffer], {type: 'image/jpeg'});
                     plain.image = URL.createObjectURL(blob);
                 }
