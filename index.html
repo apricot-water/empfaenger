@@ -106,8 +106,11 @@
     function log(msg) { console.log(msg); const d=document.getElementById('debugLog'); if(d) d.innerHTML=`> ${msg}<br>`+d.innerHTML; }
     function toggleDebug() { const d=document.getElementById('debugLog'); d.style.display=d.style.display==='none'?'block':'none'; }
 
-    let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
+
+let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
     let messages = []; 
+    // NEU: Eine Merkliste für gelöschte Timestamps
+    let hiddenRegistry = new Set(); 
     let currentIndex = 0;
     
     // Web Crypto Setup
@@ -149,7 +152,14 @@
     // === PROCESS AND ADD (UPDATED) ===
     async function processAndAdd(item) {
         if (item.hidden || !item.enc) return;
+        if (item.hidden || hiddenRegistry.has(item.ts)) {
+            // Zur Sicherheit in die Liste aufnehmen, falls noch nicht drin
+            hiddenRegistry.add(item.ts);
+            return;
+        }
+        
         if (messages.some(m => m.timestamp === item.ts)) return;
+        
 
         let plain = { sender: '?', text: 'Fehler', image: null };
         
@@ -243,35 +253,46 @@
     function resetApp() { localStorage.removeItem('oma_conf_v10'); location.reload(); }
 
     // === 2. HAUPTLOGIK ===
+   
     async function startApp() {
-        // 1. Archiv laden
         await loadGitHubArchive();
-        // 2. Live Verbindung starten
         connectNtfy();
     }
 
     async function loadGitHubArchive() {
         log("Lade GitHub Archiv...");
         try {
-            const url = `https://api.github.com/repos/${config.ghUser}/${config.ghRepo}/contents/messages.json`;
-            const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${config.ghToken}`, 'Accept': 'application/vnd.github.v3.raw' }});
+            const timeParam = new Date().getTime();
+            const url = `https://api.github.com/repos/${config.ghUser}/${config.ghRepo}/contents/messages.json?t=${timeParam}`;
+            
+            const resp = await fetch(url, { 
+                cache: "no-store", 
+                headers: { 'Authorization': `Bearer ${config.ghToken}`, 'Accept': 'application/vnd.github.v3.raw' }
+            });
             
             if(resp.ok) {
                 const archiveData = await resp.json();
-                log(`${archiveData.length} Nachrichten im Archiv.`);
-                for(let item of archiveData) {
-                    // WICHTIG: 'hidden' Flag durchreichen für Soft Delete
-                    await processAndAdd({
-                        ts: item.timestamp,
-                        enc: item.enc,
-                        img: item.img,
-                        hidden: item.hidden 
-                    });
+                if (Array.isArray(archiveData)) {
+                    log(`${archiveData.length} Nachrichten im Archiv.`);
+                    for(let item of archiveData) {
+                        
+                        // NEU: Wenn hidden, merken wir uns den Timestamp für später!
+                        if(item.hidden) {
+                            hiddenRegistry.add(item.timestamp);
+                        }
+
+                        await processAndAdd({
+                            ts: item.timestamp,
+                            enc: item.enc,
+                            img: item.img,
+                            hidden: item.hidden 
+                        });
+                    }
                 }
-            } else { log("Archiv noch leer oder nicht gefunden."); }
+            } else { log("Archiv leer/Fehler."); }
         } catch(e) { log("GitHub Fehler: " + e.message); }
     }
-
+    
     function connectNtfy() {
         log(`Live: ${config.ntfyTopic}`);
         const es = new EventSource(`https://ntfy.sh/${config.ntfyTopic}/sse?since=all`);
