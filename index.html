@@ -117,6 +117,92 @@
         const k = await window.crypto.subtle.importKey("raw", enc.encode(password), {name:"PBKDF2"}, false, ["deriveKey"]);
         return window.crypto.subtle.deriveKey({name:"PBKDF2", salt:salt, iterations:100000, hash:"SHA-256"}, k, {name:"AES-GCM", length:256}, true, ["encrypt","decrypt"]);
     }
+
+// ... getKey bleibt ...
+
+    // NEU: Binärdaten entschlüsseln
+    async function decryptData(buffer, password) {
+        try {
+            const bytes = new Uint8Array(buffer);
+            // Salt (16) + IV (12) extrahieren
+            const s = bytes.slice(0, 16);
+            const iv = bytes.slice(16, 28);
+            const data = bytes.slice(28); // Der Rest ist die verschlüsselte Datei
+            
+            const k = await getKey(password, s);
+            return await window.crypto.subtle.decrypt({name: "AES-GCM", iv: iv}, k, data);
+        } catch(e) { 
+            console.error("Entschlüsselung fehlgeschlagen:", e);
+            return null; 
+        }
+    }
+
+    // Hilfsfunktion: Base64 String zu ArrayBuffer
+    function base64ToBuffer(b64) {
+        const bin = atob(b64);
+        const len = bin.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes.buffer;
+    }
+
+    // === PROCESS AND ADD (UPDATED) ===
+    async function processAndAdd(item) {
+        if (item.hidden || !item.enc) return;
+        if (messages.some(m => m.timestamp === item.ts)) return;
+
+        let plain = { sender: '?', text: 'Fehler', image: null };
+        
+        // 1. Text entschlüsseln (Der ist wie immer Base64 String)
+        const jsonStr = await decryptStr(item.enc, config.pass);
+        if(jsonStr) {
+            try {
+                const content = JSON.parse(jsonStr);
+                plain.sender = content.sender;
+                plain.text = content.text;
+            } catch(e) { plain.text = "Format Fehler"; }
+        } else { return; } // Key falsch?
+
+        // 2. Bild entschlüsseln (Das ist der neue Teil)
+        if (item.img) {
+            let encryptedBuffer = null;
+            
+            // Fall A: Kommt live von ntfy (URL)
+            if (item.img.startsWith('http')) {
+                try {
+                    const resp = await fetch(item.img);
+                    encryptedBuffer = await resp.arrayBuffer();
+                } catch(e) { console.error("Live Load Error", e); }
+            } 
+            // Fall B: Kommt aus GitHub Archiv (Base64 String)
+            else {
+                encryptedBuffer = base64ToBuffer(item.img);
+            }
+
+            if (encryptedBuffer) {
+                const decryptedImageBuffer = await decryptData(encryptedBuffer, config.pass);
+                if (decryptedImageBuffer) {
+                    // Blob erstellen und URL erzeugen, die der Browser anzeigen kann
+                    const blob = new Blob([decryptedImageBuffer], {type: 'image/jpeg'});
+                    plain.image = URL.createObjectURL(blob);
+                }
+            }
+        }
+
+        messages.push({
+            timestamp: item.ts,
+            sender: plain.sender,
+            text: plain.text,
+            image: plain.image
+        });
+        
+        messages.sort((a,b) => a.timestamp - b.timestamp);
+        
+        const wasAtEnd = (currentIndex >= messages.length - 2);
+        if (wasAtEnd || messages.length === 1) currentIndex = messages.length - 1;
+        updateDisplay();
+    }
+    
     async function decryptStr(base64Data, password) {
         try {
             if(!base64Data) return null;
@@ -227,50 +313,6 @@
                 });
             }
         };
-    }
-
-    async function processAndAdd(item) {
-        // 1. ZOMBIE CHECK: Wenn hidden, gar nicht erst aufnehmen
-        if (item.hidden) return;
-        
-        // 2. DECRYPTION CHECK: Leere Daten ignorieren
-        if (!item.enc) return;
-        
-        // 3. DEDUP CHECK: Haben wir den Timestamp schon?
-        if (messages.some(m => m.timestamp === item.ts)) return;
-
-        let plain = { sender: '?', text: 'Fehler', image: null };
-        const jsonStr = await decryptStr(item.enc, config.pass);
-        
-        if(jsonStr) {
-            try {
-                const content = JSON.parse(jsonStr);
-                plain.sender = content.sender;
-                plain.text = content.text;
-                // Bild-Priorität: Archiv Base64 > Live URL
-                plain.image = item.img; 
-            } catch(e) { plain.text = jsonStr; }
-        } else {
-            return; // Entschlüsselung fehlgeschlagen
-        }
-
-        messages.push({
-            timestamp: item.ts,
-            sender: plain.sender,
-            text: plain.text,
-            image: plain.image
-        });
-
-        messages.sort((a,b) => a.timestamp - b.timestamp);
-        
-        // AUTO-SCROLL: Wenn wir die aktuellste Nachricht ansehen, springe zur neuen
-        // (Minus 2, weil durch den Push die Länge schon gewachsen ist)
-        const wasAtEnd = (currentIndex >= messages.length - 2);
-        
-        if (wasAtEnd || messages.length === 1) {
-            currentIndex = messages.length - 1;
-        }
-        updateDisplay();
     }
 
     function updateDisplay() {
