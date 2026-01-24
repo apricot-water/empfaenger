@@ -33,11 +33,23 @@
     #statusLight { position: fixed; top: 10px; right: 10px; width: 15px; height: 15px; border-radius: 50%; background: orange; z-index: 50; border: 2px solid white; cursor: pointer; }
     #reloadBtn { position: fixed; bottom: 15px; right: 15px; width: 40px; height: 40px; background: rgba(50,50,50,0.8); border: 1px solid #666; border-radius: 50%; color: #ccc; font-size: 20px; display: flex; align-items: center; justify-content: center; z-index: 40; cursor: pointer; }
     #debugLog { position: fixed; bottom: 0; left: 0; width: 100%; height: 100px; background: rgba(0,0,0,0.8); color: lime; font-family: monospace; font-size: 10px; overflow-y: scroll; pointer-events: none; z-index: 40; padding: 5px; box-sizing: border-box; display: none; }
+
+    /* UI TWEAKS MODAL STYLE */
+    #uiTweaksModal {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 80%; max-width: 350px; background: #222; border: 1px solid #444;
+        border-radius: 15px; padding: 20px; z-index: 200;
+        display: flex; flex-direction: column; gap: 10px;
+        box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    }
+    #uiTweaksModal h3 { margin: 0 0 10px 0; color: white; text-align: center; }
+    #uiTweaksModal label { color: #ccc; font-size: 14px; display: flex; justify-content: space-between; }
+    #uiTweaksModal input[type=range] { width: 100%; height: 30px; }
 </style>
 </head>
 <body>
 
-    <div id="statusLight" onclick="toggleDebug()"></div>
+    <div id="statusLight" onclick="handleSecretClick()"></div>
     <div id="debugLog"></div>
     <div id="reloadBtn" onclick="location.reload()">↻</div>
 
@@ -68,6 +80,21 @@
     <div id="btnPrev" class="nav-zone" onclick="prevMsg()">❮</div>
     <div id="btnNext" class="nav-zone" onclick="nextMsg()">❯</div>
 
+    <!-- UI TWEAKS MODAL (Versteckt) -->
+    <div id="uiTweaksModal" style="display:none;">
+        <h3>Anzeige anpassen</h3>
+        
+        <label>Schriftgröße: <span id="valText">4</span>vh</label>
+        <input type="range" id="rangeText" min="2" max="10" step="0.5" oninput="previewUi()">
+        
+        <label>Bildhöhe: <span id="valImg">50</span>vh</label>
+        <input type="range" id="rangeImg" min="10" max="90" step="5" oninput="previewUi()">
+        
+        <div style="display:flex; gap:10px; margin-top:20px; width:100%;">
+            <button onclick="closeUi(false)" style="background:#555; flex:1;">Abbruch</button>
+            <button onclick="closeUi(true)" style="background:var(--accent); flex:1;">Speichern</button>
+        </div>
+    </div>
 <script>
     // === 0. MAGIC LINK CHECK (Muss ganz oben sein) ===
     (function checkMagicLink() {
@@ -369,6 +396,79 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
     });
 
     if(!window.isSecureContext) alert("Achtung: HTTPS erforderlich für Verschlüsselung!");
+
+    // === UI TWEAKS LOGIC ===
+    let uiConf = { textSize: 4, imgSize: 50 }; // Standards
+    let clickCnt = 0;
+    let clickTimer = null;
+
+    // 1. Beim Start laden
+    (function initUi() {
+        try {
+            const saved = JSON.parse(localStorage.getItem('oma_ui_settings'));
+            if(saved) uiConf = saved;
+        } catch(e){}
+        applyUi(uiConf.textSize, uiConf.imgSize);
+    })();
+
+    // 2. Secret Click Handler (5x klicken)
+    function handleSecretClick() {
+        clickCnt++;
+        // Reset Zähler nach 500ms Inaktivität
+        clearTimeout(clickTimer);
+        clickTimer = setTimeout(() => { 
+            if(clickCnt < 5) toggleDebug(); // Wenn < 5 Klicks, dann Debug Log togglen
+            clickCnt = 0; 
+        }, 400);
+
+        if(clickCnt >= 5) {
+            clickCnt = 0;
+            clearTimeout(clickTimer);
+            openUiSettings();
+        }
+    }
+
+    // 3. Menü öffnen & Slider setzen
+    function openUiSettings() {
+        document.getElementById('uiTweaksModal').style.display = 'flex';
+        // Slider auf aktuelle Werte setzen
+        document.getElementById('rangeText').value = uiConf.textSize;
+        document.getElementById('rangeImg').value = uiConf.imgSize;
+        // Text Labels
+        document.getElementById('valText').innerText = uiConf.textSize;
+        document.getElementById('valImg').innerText = uiConf.imgSize;
+    }
+
+    // 4. Live Vorschau beim Schieben
+    function previewUi() {
+        const t = document.getElementById('rangeText').value;
+        const i = document.getElementById('rangeImg').value;
+        document.getElementById('valText').innerText = t;
+        document.getElementById('valImg').innerText = i;
+        applyUi(t, i);
+    }
+
+    // 5. Speichern oder Abbrechen
+    function closeUi(save) {
+        document.getElementById('uiTweaksModal').style.display = 'none';
+        if(save) {
+            uiConf.textSize = document.getElementById('rangeText').value;
+            uiConf.imgSize = document.getElementById('rangeImg').value;
+            localStorage.setItem('oma_ui_settings', JSON.stringify(uiConf));
+            alert("Gespeichert!");
+        } else {
+            // Zurücksetzen auf alte Werte
+            applyUi(uiConf.textSize, uiConf.imgSize);
+        }
+    }
+
+    // 6. Werte anwenden (CSS manipulieren)
+    function applyUi(textVal, imgVal) {
+        const txt = document.getElementById('messageText');
+        const img = document.getElementById('messageImg');
+        if(txt) txt.style.fontSize = textVal + "vh";
+        if(img) img.style.maxHeight = imgVal + "vh";
+    }
 </script>
 </body>
 </html>
