@@ -107,6 +107,40 @@
         overflow: hidden; 
         position: relative; 
     }
+    /* HEADER - OMA FRIENDLY */
+    #metaInfo { 
+        height: 70px;            /* Etwas höher für größere Schrift */
+        width: 100%; 
+        background: #111; 
+        border-bottom: 2px solid #333; /* Deutlichere Trennlinie */
+        
+        display: flex;           /* Flexbox aktiviert */
+        align-items: center;     /* Vertikal mittig */
+        justify-content: space-between; /* Schiebt Name nach Links, Rest nach Rechts */
+        
+        padding: 0 20px;         /* Abstand zum Rand */
+        flex-shrink: 0; 
+        z-index: 5; 
+    }
+
+    /* Der Name (Links) */
+    .meta-sender {
+        font-size: 3.5vh;    /* Schön groß */
+        font-weight: 900;    /* Extra Fett */
+        color: var(--accent); /* Die Akzentfarbe (Grün) oder ändere zu #ffffff für Weiß */
+        text-transform: capitalize; /* Erster Buchstabe immer Groß */
+    }
+
+    /* Datum & Zähler (Rechts) */
+    .meta-details {
+        text-align: right;   /* Rechtsbündig */
+        display: flex; 
+        flex-direction: column; /* Untereinander */
+        justify-content: center;
+        color: #ffffff;      /* Helles Weiß für besten Kontrast */
+        font-size: 2vh; 
+        font-weight: normal;
+    }
 </style>
 </head>
 <body>
@@ -422,7 +456,7 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
         };
     }
 
-    function updateDisplay() {
+function updateDisplay() {
         if(messages.length === 0) {
             document.getElementById('messageText').innerText = "Warte auf Nachrichten...";
             document.getElementById('messageImg').style.display = 'none';
@@ -444,8 +478,20 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
             imgEl.style.display = 'none';
         }
 
-        const date = new Date(msg.timestamp * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'});
-        metaEl.innerText = `${msg.sender} • ${date} (${currentIndex + 1}/${messages.length})`;
+        // Datum formatieren (z.B. "12.03. • 14:30 Uhr")
+        const dateObj = new Date(msg.timestamp * 1000);
+        const dateStr = dateObj.toLocaleDateString([], {day:'2-digit', month:'2-digit'});
+        const timeStr = dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+        // HTML bauen für die Trennung Links/Rechts
+        // Das hier ist die NEUE Version mit dem Layout für Oma:
+        metaEl.innerHTML = `
+            <div class="meta-sender">${msg.sender}</div>
+            <div class="meta-details">
+                <span style="font-weight:bold; font-size:1.1em;">${timeStr} Uhr</span>
+                <span style="color:#aaa;">${dateStr} • (${currentIndex + 1}/${messages.length})</span>
+            </div>
+        `;
     }
 
     // Navigation
@@ -460,6 +506,7 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
     if(!window.isSecureContext) alert("Achtung: HTTPS erforderlich für Verschlüsselung!");
 
     // === UI TWEAKS LOGIC ===
+
     let uiConf = { textSize: 4, imgSize: 50 }; // Standards
     let clickCnt = 0;
     let clickTimer = null;
