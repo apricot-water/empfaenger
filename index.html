@@ -131,14 +131,17 @@
         text-transform: capitalize; /* Erster Buchstabe immer Groß */
     }
 
-    /* Datum & Zähler (Rechts) */
+  /* Datum & Zähler (Rechts) */
     .meta-details {
         text-align: right;   /* Rechtsbündig */
         display: flex; 
         flex-direction: column; /* Untereinander */
         justify-content: center;
-        color: #ffffff;      /* Helles Weiß für besten Kontrast */
-        font-size: 2vh; 
+        color: #ffffff;
+        
+        /* HIER DIE ÄNDERUNGEN: */
+        font-size: 1.8vh;    /* Basis-Schrift etwas kleiner, damit 3 Zeilen passen */
+        line-height: 1.2;    /* Zeilen enger zusammenrücken */
         font-weight: normal;
     }
 </style>
@@ -478,20 +481,18 @@ function updateDisplay() {
             imgEl.style.display = 'none';
         }
 
-        // Datum formatieren
         const dateObj = new Date(msg.timestamp * 1000);
         const dateStr = dateObj.toLocaleDateString([], {day:'2-digit', month:'2-digit'});
         const timeStr = dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-
-        // "Oma-Freundlicher" Zähler
         const counterStr = `Nachricht ${currentIndex + 1} von ${messages.length}`;
 
-        // HTML einfügen
+        // HTML: Jetzt 3 Zeilen untereinander
         metaEl.innerHTML = `
             <div class="meta-sender">${msg.sender}</div>
             <div class="meta-details">
-                <span style="font-weight:bold; font-size:1.1em;">${timeStr} Uhr</span>
-                <span style="color:#aaa;">${dateStr} • ${counterStr}</span>
+                <span style="font-weight:bold; font-size:1.3em;">${timeStr} Uhr</span>
+                <span style="color:#ddd;">${dateStr}</span>
+                <span style="color:#888; font-size:0.9em; margin-top:2px;">${counterStr}</span>
             </div>
         `;
     }
