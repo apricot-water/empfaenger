@@ -93,6 +93,20 @@
         max-height: 100%; 
         overflow-y: auto; 
     }
+    /* MAIN DISPLAY - TOP ALIGNED */
+    #displayArea { 
+        flex: 1; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        
+        /* HIER DIE ÄNDERUNG: */
+        justify-content: flex-start; /* Inhalt beginnt oben (statt Mitte) */
+        padding: 10px 20px;          /* Oben nur 10px Abstand zum Header */
+        
+        overflow: hidden; 
+        position: relative; 
+    }
 </style>
 </head>
 <body>
