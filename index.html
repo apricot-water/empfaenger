@@ -45,54 +45,6 @@
     #uiTweaksModal h3 { margin: 0 0 10px 0; color: white; text-align: center; }
     #uiTweaksModal label { color: #ccc; font-size: 14px; display: flex; justify-content: space-between; }
     #uiTweaksModal input[type=range] { width: 100%; height: 30px; }
-    /* MAIN DISPLAY - PROFESSIONAL OLED LOOK */
-    #displayArea { 
-        flex: 1; 
-        display: flex; 
-        flex-direction: column; 
-        align-items: center;     /* Zentriert den Inhalt (Bild & Textblock) horizontal */
-        justify-content: center; /* Zentriert alles vertikal */
-        padding: 20px; 
-        overflow: hidden; 
-        position: relative; 
-    }
-
-    #messageImg { 
-        max-width: 100%;       /* Bild darf volle Breite nutzen */
-        max-height: 45vh;      /* Etwas Platz lassen für den Text */
-        object-fit: contain; 
-        border-radius: 15px; 
-        margin-bottom: 25px;   /* Mehr Abstand zum Text sieht edler aus */
-        display: none; 
-        box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Leichter Schatten falls Bild hell ist */
-    }
-
-    #messageText { 
-        /* 1. Linksbündig für Lesbarkeit */
-        text-align: left; 
-        
-        /* 2. Normale Dicke statt Fett */
-        font-weight: 400; 
-        
-        /* 3. Zeilenabstand für "Luft" */
-        line-height: 1.5; 
-        
-        /* 4. Breite begrenzen (90%) */
-        width: 90%; 
-        max-width: 800px; /* Profi-Tipp: Auf riesigen Tablets wird die Zeile sonst zu lang */
-        
-        /* Schriftart modernisieren (System Fonts) */
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        
-        /* OLED-Tipp: Leichtes Off-White (#f0f0f0) ist angenehmer als grelles Weiß (#ffffff) */
-        color: #f0f0f0; 
-
-        /* Layout & Scrollen */
-        font-size: 4vh; /* Standard, wird vom JS-Slider überschrieben */
-        word-wrap: break-word; 
-        max-height: 100%; 
-        overflow-y: auto; 
-    }
 </style>
 </head>
 <body>
