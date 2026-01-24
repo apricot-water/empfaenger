@@ -118,7 +118,7 @@
         align-items: center;     /* Vertikal mittig */
         justify-content: space-between; /* Schiebt Name nach Links, Rest nach Rechts */
         
-        padding: 0 20px;         /* Abstand zum Rand */
+        padding: 0 80px;         /* Abstand zum Rand */
         flex-shrink: 0; 
         z-index: 5; 
     }
@@ -478,18 +478,20 @@ function updateDisplay() {
             imgEl.style.display = 'none';
         }
 
-        // Datum formatieren (z.B. "12.03. • 14:30 Uhr")
+        // Datum formatieren
         const dateObj = new Date(msg.timestamp * 1000);
         const dateStr = dateObj.toLocaleDateString([], {day:'2-digit', month:'2-digit'});
         const timeStr = dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-        // HTML bauen für die Trennung Links/Rechts
-        // Das hier ist die NEUE Version mit dem Layout für Oma:
+        // "Oma-Freundlicher" Zähler
+        const counterStr = `Nachricht ${currentIndex + 1} von ${messages.length}`;
+
+        // HTML einfügen
         metaEl.innerHTML = `
             <div class="meta-sender">${msg.sender}</div>
             <div class="meta-details">
                 <span style="font-weight:bold; font-size:1.1em;">${timeStr} Uhr</span>
-                <span style="color:#aaa;">${dateStr} • (${currentIndex + 1}/${messages.length})</span>
+                <span style="color:#aaa;">${dateStr} • ${counterStr}</span>
             </div>
         `;
     }
