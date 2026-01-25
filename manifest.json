@@ -1,7 +1,7 @@
 {
   "name": "Oma Display",
   "short_name": "Oma",
-  "start_url": "index.html",
+  "start_url": "index.html?v=2",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
