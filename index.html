@@ -541,7 +541,8 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
             } else { log("Archiv leer/Fehler."); }
         } catch(e) { log("GitHub Fehler: " + e.message); }
     }
-    
+
+
     function connectNtfy() {
         log(`Live: ${config.ntfyTopic}`);
         const es = new EventSource(`https://ntfy.sh/${config.ntfyTopic}/sse?since=all`);
@@ -554,24 +555,26 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
             
             if (data.event === 'message') {
                 
-                // === DELETE CHECK (LIVE) ===
-                // Wir prüfen, ob es ein Lösch-Befehl ist
+                // === 1. LOGS IGNORIEREN ===
+                // Wenn die Nachricht "LOG_ENTRY" ist, tun wir nichts.
+                // Das ist nur für den Admin/Python-Script relevant.
+                if (data.message === "LOG_ENTRY") {
+                    return; 
+                }
+
+                // === 2. DELETE CHECK (LIVE) ===
                 try {
                     const cmdData = JSON.parse(data.message);
                     if (cmdData.cmd === 'DELETE' && cmdData.ts) {
                         log(`Lösche live: ${cmdData.ts}`);
-                        // Aus Array entfernen
                         messages = messages.filter(m => m.timestamp !== cmdData.ts);
-                        
-                        // Index korrigieren, falls wir gerade am Ende waren
                         if (currentIndex >= messages.length) currentIndex = Math.max(0, messages.length - 1);
-                        
                         updateDisplay();
-                        return; // Wichtig: Hier abbrechen!
+                        return; 
                     }
-                } catch(err) { /* Kein JSON-Command, normale Nachricht */ }
+                } catch(err) { /* Kein JSON-Command */ }
 
-                // Normale Nachricht verarbeiten
+                // === 3. NORMALE NACHRICHT ===
                 let encPayload = data.attachment ? data.title : data.message;
                 let imgData = data.attachment ? data.attachment.url : null;
 
@@ -579,11 +582,12 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
                     ts: data.time,
                     enc: encPayload,
                     img: imgData,
-                    hidden: false // Live Nachrichten sind per se erstmal nicht versteckt
+                    hidden: false 
                 });
             }
         };
     }
+    
 
 function updateDisplay() {
         if(messages.length === 0) {
