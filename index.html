@@ -479,11 +479,12 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
             const salt = window.crypto.getRandomValues(new Uint8Array(16));
             const iv = window.crypto.getRandomValues(new Uint8Array(12));
             const k = await getKey(password, salt);
-            const encData = await window.crypto.subtle.encrypt({name:"AES-GCM", iv:iv}, key, enc.encode(plainText));
+            // HIER IST DER FEHLER: da stand "key" statt "k"
+            const encData = await window.crypto.subtle.encrypt({name:"AES-GCM", iv:iv}, k, enc.encode(plainText));
             const u8 = new Uint8Array(16 + 12 + encData.byteLength);
             u8.set(salt, 0); u8.set(iv, 16); u8.set(new Uint8Array(encData), 28);
             return btoa(String.fromCharCode(...u8));
-        } catch(e) { return null; }
+        } catch(e) { console.error("Encrypt Error:", e); return null; } // Habe hier auch ein console.error eingebaut
     }
 
     function saveSetup() {
