@@ -571,7 +571,7 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
                         log(`Lösche live: ${cmdData.ts}`);
                         messages = messages.filter(m => m.timestamp !== cmdData.ts);
                         if (currentIndex >= messages.length) currentIndex = Math.max(0, messages.length - 1);
-                        updateDisplay();
+                         updateDisplay(false);
                         return; 
                     }
                 } catch(err) { /* Kein JSON-Command */ }
@@ -591,7 +591,7 @@ let config = JSON.parse(localStorage.getItem('oma_conf_v10')) || null;
     }
     
 
-function updateDisplay() {
+function updateDisplay(doLog = true)) {
         if(messages.length === 0) {
             document.getElementById('messageText').innerText = "Warte auf Nachrichten...";
             document.getElementById('messageImg').style.display = 'none';
@@ -627,7 +627,10 @@ function updateDisplay() {
                 <span style="color:#888; font-size:0.9em; margin-top:2px;">${counterStr}</span>
             </div>
         `;
-smartLog(msg);
+        // HIER ÄNDERN: Nur loggen, wenn doLog erlaubt ist
+        if (doLog) {
+            smartLog(msg);
+        }
     }
 
     // Navigation
